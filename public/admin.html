@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Control Panel</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="page-admin">
+  <header class="admin-header">
+    <h1 class="admin-title">控制面板</h1>
+    <div class="admin-toolbar">
+      <label class="admin-scene-toolbar">
+        <span class="admin-scene-label">场景</span>
+        <select id="admin-scene-select" class="admin-scene-select" aria-label="切换场景"></select>
+      </label>
+      <span class="admin-shortcuts-hint" title="未聚焦输入框/表单时：↑/← 上一项 · ↓/→ 下一项 · B 空白 · R 刷新">快捷键：↑/← 上一 · ↓/→ 下一 · B 空白 · R 刷新</span>
+      <a href="/editor" class="btn">编辑内容</a>
+      <button type="button" id="btn-share" class="btn" title="生成会众端链接二维码（需在 .env 配置 PUBLIC_VIEW_URL）">分享</button>
+      <button type="button" id="btn-blank" class="btn btn-primary">一键空白页</button>
+      <button type="button" id="btn-prev" class="btn">上一项</button>
+      <button type="button" id="btn-next" class="btn">下一项</button>
+    </div>
+  </header>
+  <div class="admin-layout">
+    <aside class="admin-list-wrap">
+      <h2 class="admin-subtitle">内容列表</h2>
+      <div class="admin-filters">
+        <div class="admin-filters-row">
+          <input type="search" id="admin-search" class="admin-search" placeholder="搜索 id / 标签 / 类型…" autocomplete="off" />
+          <select id="admin-filter-type" class="admin-filter-type" aria-label="按类型过滤">
+            <option value="all">全部类型</option>
+            <option value="blank">blank</option>
+            <option value="notice">notice</option>
+            <option value="text">text</option>
+            <option value="image">image</option>
+          </select>
+        </div>
+        <p id="admin-filter-hint" class="admin-filter-hint"></p>
+      </div>
+      <ul id="item-list" class="admin-list"></ul>
+    </aside>
+    <main class="admin-preview-wrap">
+      <h2 class="admin-subtitle">当前预览</h2>
+      <div id="preview" class="admin-preview"></div>
+    </main>
+  </div>
+
+  <div id="admin-share-modal" class="admin-share-modal is-hidden" aria-hidden="true">
+    <div class="admin-share-backdrop" id="admin-share-backdrop"></div>
+    <div class="admin-share-box" role="dialog" aria-labelledby="admin-share-title">
+      <h2 id="admin-share-title" class="admin-share-title">分享会众端</h2>
+      <p id="admin-share-hint" class="admin-share-hint"></p>
+      <div id="admin-share-qr-wrap" class="admin-share-qr-wrap is-hidden">
+        <img id="admin-share-qrcode" class="admin-share-qrcode" alt="会众端链接二维码" />
+        <p class="admin-share-url-line"><code id="admin-share-url-text" class="admin-share-url-code"></code></p>
+        <button type="button" id="admin-share-copy" class="btn btn-small">复制链接</button>
+      </div>
+      <button type="button" id="admin-share-close" class="btn">关闭</button>
+    </div>
+  </div>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

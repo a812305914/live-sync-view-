@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Items Editor</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="page-editor">
+  <header class="editor-header">
+    <h1 class="editor-title">编辑内容</h1>
+    <div class="editor-toolbar" role="toolbar" aria-label="编辑器工具栏">
+      <div class="editor-toolbar-group editor-toolbar-nav">
+        <a href="/admin" class="btn btn-toolbar">返回控制面板</a>
+      </div>
+      <span class="editor-toolbar-sep" aria-hidden="true"></span>
+      <div class="editor-toolbar-group editor-toolbar-primary">
+        <button type="button" id="btn-save" class="btn btn-primary btn-toolbar-main">保存</button>
+        <button type="button" id="btn-publish" class="btn btn-primary btn-toolbar-main" title="校验并写入正式 items.json（会备份旧文件）">发布</button>
+      </div>
+      <span class="editor-toolbar-sep" aria-hidden="true"></span>
+      <div class="editor-toolbar-group editor-toolbar-tools">
+        <button type="button" id="btn-check-images" class="btn btn-toolbar-muted" title="检测每条 image 的 src 是否可加载">检查图片资源</button>
+        <button type="button" id="btn-toggle-json" class="btn btn-toolbar-muted">查看原始 JSON</button>
+        <button type="button" id="btn-format" class="btn btn-toolbar-muted">格式化 JSON</button>
+        <button type="button" id="btn-reload" class="btn btn-toolbar-muted">重新加载</button>
+      </div>
+    </div>
+  </header>
+
+  <p class="editor-hint">
+    多场景结构 <code>{ scenes: [...] }</code>。「<strong>保存</strong>」将当前编辑写入 <code>data/items.draft.json</code>；「<strong>发布</strong>」写入正式 <code>data/items.json</code>（备份旧文件）。每个场景内须保留 <code>id</code> 与 <code>type</code> 均为 <code>blank</code> 的项。
+  </p>
+  <p id="editor-status" class="editor-status" role="status"></p>
+
+  <section id="image-check-section" class="editor-image-check-section is-hidden" aria-label="图片资源检查结果">
+    <div id="image-check-summary" class="editor-image-check-summary"></div>
+    <div class="editor-image-check-scroll">
+      <table class="editor-image-check-table">
+        <thead>
+          <tr>
+            <th scope="col">场景</th>
+            <th scope="col">id</th>
+            <th scope="col">label</th>
+            <th scope="col">路径 (src)</th>
+            <th scope="col">状态</th>
+          </tr>
+        </thead>
+        <tbody id="image-check-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div id="view-structured" class="editor-structured">
+    <div class="editor-main">
+      <aside class="editor-scene-sidebar" aria-label="场景">
+        <div class="editor-column-head">
+          <h2 class="editor-column-title">场景</h2>
+          <p class="editor-column-desc">选择要编辑的场景</p>
+        </div>
+        <div class="editor-scene-manage" aria-label="场景管理">
+          <span class="editor-scene-manage-label">管理</span>
+          <div class="editor-scene-manage-btns">
+            <button type="button" id="btn-scene-add" class="btn btn-small">新场景</button>
+            <button type="button" id="btn-scene-rename" class="btn btn-small">重命名</button>
+            <button type="button" id="btn-scene-delete" class="btn btn-small btn-danger-scene" title="删除当前场景（至少保留一个）">删除场景</button>
+          </div>
+        </div>
+        <ul id="scene-list" class="editor-scene-list" role="listbox" aria-label="场景列表"></ul>
+      </aside>
+
+      <aside class="editor-sidebar" aria-label="当前场景的条目">
+        <div class="editor-column-head editor-column-head--item">
+          <h2 class="editor-column-title">流程条目</h2>
+          <p class="editor-column-desc">当前场景内的顺序与筛选</p>
+        </div>
+        <div class="editor-item-toolbar">
+          <input type="search" id="item-filter-search" class="editor-item-search" placeholder="按 id / label 搜索…" autocomplete="off" aria-label="搜索条目" />
+          <select id="item-filter-type" class="editor-item-filter-type" aria-label="按类型过滤">
+            <option value="">全部类型</option>
+            <option value="blank">blank</option>
+            <option value="notice">notice</option>
+            <option value="text">text</option>
+            <option value="image">image</option>
+          </select>
+          <div class="editor-add-wrap" id="editor-add-wrap">
+            <button type="button" id="btn-add-menu" class="btn btn-small btn-primary editor-add-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="add-type-menu">
+              ＋ 新增 item <span class="editor-add-caret" aria-hidden="true">▾</span>
+            </button>
+            <ul id="add-type-menu" class="editor-add-menu is-hidden" role="listbox" aria-label="选择新增类型">
+              <li role="option"><button type="button" class="editor-add-menu-item" data-new-type="blank">blank — 空白页</button></li>
+              <li role="option"><button type="button" class="editor-add-menu-item" data-new-type="notice">notice — 大字一句</button></li>
+              <li role="option"><button type="button" class="editor-add-menu-item" data-new-type="text">text — 标题与正文</button></li>
+              <li role="option"><button type="button" class="editor-add-menu-item" data-new-type="image">image — 图片</button></li>
+            </ul>
+          </div>
+        </div>
+        <p id="scene-item-warning" class="editor-scene-item-warning is-hidden" role="alert"></p>
+        <ul id="item-list" class="editor-item-list" role="listbox" aria-label="条目列表"></ul>
+      </aside>
+
+      <section class="editor-form-panel" aria-label="编辑与预览">
+        <div class="editor-column-head editor-column-head--right">
+          <h2 class="editor-column-title">编辑与预览</h2>
+          <p class="editor-column-desc">结构化字段与会众端效果</p>
+        </div>
+        <div id="form-empty" class="editor-form-empty">请从中间栏选择一项进行编辑。</div>
+        <div id="form-wrap" class="editor-form-wrap is-hidden">
+          <header class="editor-item-context" aria-live="polite">
+            <div class="editor-item-context-row">
+              <span class="editor-item-context-label">场景</span>
+              <span id="ctx-scene-name" class="editor-item-context-value"></span>
+            </div>
+            <div class="editor-item-context-row">
+              <span class="editor-item-context-label">条目</span>
+              <span id="ctx-item-title" class="editor-item-context-value"></span>
+            </div>
+            <div class="editor-item-context-meta">
+              <span id="ctx-item-type" class="editor-type-pill"></span>
+              <span id="ctx-item-index" class="editor-item-context-index"></span>
+            </div>
+          </header>
+
+          <div class="editor-item-flow-actions" aria-label="条目顺序与复制">
+            <button type="button" id="btn-prev-item" class="btn btn-small" title="上一项">上一项</button>
+            <button type="button" id="btn-next-item" class="btn btn-small" title="下一项">下一项</button>
+            <span class="editor-flow-actions-sep" aria-hidden="true"></span>
+            <button type="button" id="btn-move-up" class="btn btn-small">上移</button>
+            <button type="button" id="btn-move-down" class="btn btn-small">下移</button>
+            <button type="button" id="btn-copy" class="btn btn-small">复制</button>
+            <button type="button" id="btn-delete" class="btn btn-small btn-danger">删除</button>
+          </div>
+
+          <div class="editor-form-preview-stack">
+            <div class="editor-form-block">
+              <h3 class="editor-subblock-title">表单</h3>
+              <form id="item-form" class="editor-form" autocomplete="off">
+                <input type="hidden" id="f-id" />
+                <div class="editor-field">
+                  <label for="f-type">类型 <span class="req">*</span></label>
+                  <select id="f-type">
+                    <option value="blank">空白页（blank）</option>
+                    <option value="notice">大字提示（notice）</option>
+                    <option value="text">标题与正文（text）</option>
+                    <option value="image">图片（image）</option>
+                  </select>
+                </div>
+                <div class="editor-field">
+                  <label for="f-label">label</label>
+                  <input type="text" id="f-label" />
+                </div>
+                <div id="field-notice" class="editor-field is-hidden">
+                  <label for="f-body-notice">body <span class="req">*</span></label>
+                  <textarea id="f-body-notice" class="editor-textarea-body" rows="6"></textarea>
+                </div>
+                <div id="field-text" class="editor-field is-hidden">
+                  <label for="f-title">title</label>
+                  <input type="text" id="f-title" />
+                  <label for="f-body-text">body <span class="req">*</span></label>
+                  <textarea id="f-body-text" class="editor-textarea-body" rows="10"></textarea>
+                </div>
+                <div id="field-image" class="editor-field is-hidden">
+                  <label for="f-image-file">选择图片 <span class="req">*</span></label>
+                  <div class="editor-image-upload-row">
+                    <input
+                      type="file"
+                      id="f-image-file"
+                      class="editor-image-file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                    />
+                    <span id="image-upload-status" class="editor-upload-status" role="status" aria-live="polite"></span>
+                  </div>
+                  <label for="f-src">资源路径（src）</label>
+                  <input type="text" id="f-src" placeholder="上传后自动填入，亦可手动填写" />
+                  <p class="field-hint">图片保存到服务器 <code>public/media</code>，路径形如 <code>/media/xxx.jpg</code>。会众端与编辑预览均使用该 URL。</p>
+                </div>
+              </form>
+            </div>
+
+            <div class="editor-preview-block">
+              <h3 class="editor-subblock-title">实时预览 <span class="editor-subblock-hint">（会众端大致效果）</span></h3>
+              <div id="live-preview-root" class="live-preview-root" aria-live="polite">
+                <div id="live-preview-blank" class="live-preview-panel is-hidden">
+                  <div class="live-preview-viewport">
+                    <p class="live-preview-muted">空白页 · 无内容</p>
+                  </div>
+                </div>
+                <div id="live-preview-notice" class="live-preview-panel is-hidden">
+                  <div class="live-preview-viewport">
+                    <p id="live-notice-text" class="view-notice live-preview-notice-text"></p>
+                  </div>
+                </div>
+                <div id="live-preview-text" class="live-preview-panel is-hidden">
+                  <div class="live-preview-viewport live-preview-viewport--text">
+                    <p id="live-text-title" class="view-title"></p>
+                    <p id="live-text-body" class="view-body"></p>
+                  </div>
+                </div>
+                <div id="live-preview-image" class="live-preview-panel is-hidden">
+                  <div class="live-preview-viewport live-preview-viewport--image">
+                    <div class="view-image-wrap live-preview-image-wrap">
+                      <img id="live-image-img" class="view-image live-preview-img" alt="" />
+                      <p id="live-image-fallback" class="view-image-fallback is-hidden">无法加载图片</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="view-json" class="editor-json-view is-hidden">
+    <p class="editor-json-readonly-hint">以下为根据当前表单生成的 JSON，只读预览。</p>
+    <pre id="json-readonly" class="editor-json-pre" aria-readonly="true"></pre>
+    <div class="editor-json-advanced">
+      <button type="button" id="btn-json-advanced" class="btn">高级模式：直接编辑 JSON</button>
+      <p id="json-advanced-warn" class="editor-risk is-hidden">
+        直接编辑可能破坏格式或与表单不一致；修改后请点击「应用 JSON 到表单」再保存。
+      </p>
+      <textarea id="json-advanced-ta" class="editor-json-ta is-hidden" spellcheck="false" rows="16"></textarea>
+      <div id="json-advanced-actions" class="is-hidden">
+        <button type="button" id="btn-json-apply" class="btn btn-primary">应用 JSON 到表单</button>
+      </div>
+    </div>
+    <button type="button" id="btn-back-form" class="btn">返回表单编辑</button>
+  </div>
+
+  <script src="/editor.js"></script>
+</body>
+</html>

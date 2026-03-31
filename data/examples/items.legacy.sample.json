@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "id": "blank",
+      "type": "blank",
+      "label": "空白页"
+    },
+    {
+      "id": "notice-only",
+      "type": "notice",
+      "label": "旧版格式说明",
+      "body": "根对象仅有 items 数组时，服务启动时会自动迁移为单场景 default（见 README / CHANGELOG）。"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "live-sync-view",
+  "version": "1.0.0",
+  "description": "Minimal control + audience sync for mobile display",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.4"
+  }
+}

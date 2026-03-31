@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Live View</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="page-view">
+  <!-- 模块：会众端离线 / 轮询失联提示（由 view.js 切换显隐与文案） -->
+  <div id="view-connection-banner" class="view-connection-banner is-hidden" role="status" aria-live="polite"></div>
+  <div id="view-root" aria-live="polite">
+    <section id="panel-blank" class="view-panel is-hidden" data-panel="blank">
+      <p class="view-wait">请稍候</p>
+    </section>
+    <section id="panel-notice" class="view-panel is-hidden" data-panel="notice">
+      <p id="notice-text" class="view-notice"></p>
+    </section>
+    <section id="panel-text" class="view-panel is-hidden" data-panel="text">
+      <h1 id="text-title" class="view-title"></h1>
+      <p id="text-body" class="view-body"></p>
+    </section>
+    <section id="panel-image" class="view-panel is-hidden" data-panel="image">
+      <div class="view-image-wrap">
+        <img id="view-image" class="view-image" alt="" />
+        <p id="image-fallback" class="view-image-fallback is-hidden">图片暂不可用</p>
+      </div>
+    </section>
+  </div>
+  <script src="/view.js"></script>
+</body>
+</html>

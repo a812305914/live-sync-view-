@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>登录</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="page-login">
+  <main class="login-box">
+    <h1 class="login-title" id="login-heading">登录</h1>
+    <p id="login-error" class="login-error is-hidden" role="alert"></p>
+    <!-- 口令仅通过 POST 提交，由服务端校验；不写在前端 -->
+    <form method="post" action="/login" class="login-form" autocomplete="on">
+      <input type="hidden" name="next" id="fld-next" value="/admin" />
+      <input type="hidden" name="role" id="fld-role" value="admin" />
+      <label class="login-label" for="fld-password">口令</label>
+      <input
+        type="password"
+        name="password"
+        id="fld-password"
+        required
+        autocomplete="current-password"
+        class="login-input"
+      />
+      <button type="submit" class="btn btn-primary login-submit">进入</button>
+    </form>
+  </main>
+  <script>
+    (function () {
+      var q = new URLSearchParams(window.location.search);
+      var next = q.get("next");
+      var role = q.get("role");
+      var err = q.get("error");
+      if (next) {
+        document.getElementById("fld-next").value = next;
+      }
+      if (role === "editor" || role === "admin") {
+        document.getElementById("fld-role").value = role;
+      }
+      if (role === "editor" || next === "/editor") {
+        document.getElementById("login-heading").textContent = "编辑端登录";
+      }
+      if (err === "1") {
+        var el = document.getElementById("login-error");
+        el.textContent = "口令错误，请重试。";
+        el.classList.remove("is-hidden");
+      }
+    })();
+  </script>
+</body>
+</html>

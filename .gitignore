@@ -1,0 +1,16 @@
+# 本地口令与密钥（使用 .env.example 为模板）
+.env
+# 编辑器上传的图片（保留目录见 public/media/.gitkeep）
+public/media/*
+!public/media/.gitkeep
+CHANGELOG.md
+# 仓库内示例占位图（供 data/examples 引用）
+!public/media/example.svg
+node_modules/
+npm-debug.log*
+.DS_Store
+data/catalog-meta.json
+data/state.json
+data/items.json
+data/items.draft.json
+data/items-draft.json

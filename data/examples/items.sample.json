@@ -1,0 +1,51 @@
+{
+  "scenes": [
+    {
+      "id": "default",
+      "name": "示例",
+      "items": [
+        {
+          "id": "blank",
+          "type": "blank",
+          "label": "空白页"
+        },
+        {
+          "id": "notice-welcome",
+          "type": "notice",
+          "label": "欢迎",
+          "body": "欢迎使用 Sunday_Worship。\n本文件为仓库内示例目录，可复制为 data/items.json 试用。"
+        },
+        {
+          "id": "text-sample",
+          "type": "text",
+          "label": "正文示例",
+          "title": "标题（可选）",
+          "body": "正文支持多行。\n每场景须保留一条 id 与 type 均为 blank 的项。"
+        },
+        {
+          "id": "image-sample",
+          "type": "image",
+          "label": "图片示例",
+          "src": "/media/example.svg"
+        }
+      ]
+    },
+    {
+      "id": "second",
+      "name": "第二场景（多场景示例）",
+      "items": [
+        {
+          "id": "blank",
+          "type": "blank",
+          "label": "空白页"
+        },
+        {
+          "id": "notice-end",
+          "type": "notice",
+          "label": "结束",
+          "body": "切换场景由控制端 / 管理 API 完成；会众端只显示当前场景的当前条目。"
+        }
+      ]
+    }
+  ]
+}
