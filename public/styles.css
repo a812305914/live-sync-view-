@@ -39,7 +39,8 @@ body {
   overflow: hidden;
 }
 
-#view-root {
+#view-root,
+.admin-ss-root {
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
@@ -87,7 +88,8 @@ body {
 }
 
 /* Long text: scroll inside panel (flex child needs min-height:0 for overflow) */
-#panel-text.view-panel {
+#panel-text.view-panel,
+#admin-ss-panel-text.view-panel {
   align-self: center;
   width: 100%;
   min-height: 0;
@@ -121,6 +123,70 @@ body {
   margin: 0;
   font-size: 1.25rem;
   color: var(--muted);
+}
+
+/* 放映模式：尽量占满视口（为底部操作提示留出空间），并取消会众端 42rem 栏宽限制以便大图横铺 */
+.admin-slideshow .view-panel {
+  max-width: 100%;
+  width: 100%;
+}
+
+.admin-slideshow .view-image-wrap {
+  width: 100%;
+  height: min(calc(100vh - 3.5rem), calc(100dvh - 3.5rem));
+  max-height: min(calc(100vh - 3.5rem), calc(100dvh - 3.5rem));
+}
+
+.admin-slideshow .view-image {
+  max-width: 100%;
+  max-height: min(calc(100vh - 3.5rem), calc(100dvh - 3.5rem));
+  width: auto;
+  height: auto;
+}
+
+/* ---------- Admin fullscreen slideshow ---------- */
+
+.admin-slideshow {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  background: #0a0a0f;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.admin-slideshow.is-hidden {
+  display: none !important;
+}
+
+.admin-slideshow .admin-ss-root {
+  flex: 1;
+  min-height: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+.admin-slideshow-hint {
+  position: absolute;
+  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 2rem);
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+  text-align: center;
+  user-select: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
 }
 
 /* ---------- Control panel ---------- */

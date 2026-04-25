@@ -2,6 +2,7 @@
  * Control panel: 已发布目录列表、切换激活项、预览。
  * 多场景：顶部下拉框切换当前 scene（POST /api/scene）后刷新当前场景的 items；会众端仅随 GET /api/state 同步，无需改 view。
  * 访问保护由服务端 /login + Cookie 完成；API 401 时跳转登录页。
+ * 放映：全屏层与会众端相近布局；点击画面 POST 下一项；Esc 或退出全屏时关闭放映层。
  */
 
 (function () {
@@ -26,6 +27,26 @@
   var shareUrlText = document.getElementById("admin-share-url-text");
   var btnShareCopy = document.getElementById("admin-share-copy");
   var btnShareClose = document.getElementById("admin-share-close");
+
+  var adminSlideshow = document.getElementById("admin-slideshow");
+  var btnSlideshow = document.getElementById("btn-slideshow");
+  /** 放映层打开时为 true（含请求全屏失败但仍显示浮层的情况） */
+  var slideshowOpen = false;
+
+  var ssPanels = {
+    blank: document.getElementById("admin-ss-panel-blank"),
+    notice: document.getElementById("admin-ss-panel-notice"),
+    text: document.getElementById("admin-ss-panel-text"),
+    image: document.getElementById("admin-ss-panel-image"),
+  };
+
+  var ssEls = {
+    noticeText: document.getElementById("admin-ss-notice-text"),
+    textTitle: document.getElementById("admin-ss-text-title"),
+    textBody: document.getElementById("admin-ss-text-body"),
+    viewImage: document.getElementById("admin-ss-view-image"),
+    imageFallback: document.getElementById("admin-ss-image-fallback"),
+  };
 
   /** 当前分享链接（供复制） */
   var shareUrlCurrent = "";
@@ -105,6 +126,203 @@
     return -1;
   }
 
+  function isSlideshowFullscreen() {
+    if (!adminSlideshow) {
+      return false;
+    }
+    return (
+      document.fullscreenElement === adminSlideshow ||
+      document.webkitFullscreenElement === adminSlideshow
+    );
+  }
+
+  function showSsPanel(type) {
+    Object.keys(ssPanels).forEach(function (key) {
+      var el = ssPanels[key];
+      if (el) {
+        el.classList.toggle("is-hidden", key !== type);
+      }
+    });
+  }
+
+  function getSsImageSrc(item) {
+    if (!item || item.type !== "image") {
+      return "";
+    }
+    if (item.src != null && String(item.src).trim()) {
+      return String(item.src).trim();
+    }
+    if (item.image != null && String(item.image).trim()) {
+      return String(item.image).trim();
+    }
+    return "";
+  }
+
+  function renderSlideshow(item) {
+    if (!slideshowOpen || !ssPanels.blank) {
+      return;
+    }
+    var t = item && item.type ? item.type : "blank";
+    if (t === "blank" || !item) {
+      showSsPanel("blank");
+      return;
+    }
+    if (t === "notice") {
+      showSsPanel("notice");
+      if (ssEls.noticeText) {
+        ssEls.noticeText.textContent = item.body || item.text || "";
+      }
+      return;
+    }
+    if (t === "text") {
+      showSsPanel("text");
+      var title = item.title || "";
+      if (ssEls.textTitle) {
+        ssEls.textTitle.textContent = title;
+        ssEls.textTitle.style.display = title ? "block" : "none";
+      }
+      if (ssEls.textBody) {
+        ssEls.textBody.textContent = item.body || "";
+      }
+      return;
+    }
+    if (t === "image") {
+      showSsPanel("image");
+      var src = getSsImageSrc(item);
+      if (ssEls.imageFallback) {
+        ssEls.imageFallback.classList.add("is-hidden");
+      }
+      if (ssEls.viewImage) {
+        ssEls.viewImage.classList.remove("is-hidden");
+        ssEls.viewImage.onload = function () {
+          if (ssEls.imageFallback) {
+            ssEls.imageFallback.classList.add("is-hidden");
+          }
+          ssEls.viewImage.classList.remove("is-hidden");
+        };
+        ssEls.viewImage.onerror = function () {
+          ssEls.viewImage.classList.add("is-hidden");
+          if (ssEls.imageFallback) {
+            ssEls.imageFallback.classList.remove("is-hidden");
+          }
+        };
+        if (src) {
+          ssEls.viewImage.alt = item.label || "内容图片";
+          ssEls.viewImage.src = src;
+        } else {
+          ssEls.viewImage.removeAttribute("src");
+          ssEls.viewImage.classList.add("is-hidden");
+          if (ssEls.imageFallback) {
+            ssEls.imageFallback.classList.remove("is-hidden");
+          }
+        }
+      }
+      return;
+    }
+    showSsPanel("blank");
+  }
+
+  function renderSlideshowIfOpen(item) {
+    if (slideshowOpen) {
+      renderSlideshow(item);
+    }
+  }
+
+  function requestSlideshowFullscreen() {
+    if (!adminSlideshow) {
+      return;
+    }
+    var p = null;
+    if (adminSlideshow.requestFullscreen) {
+      p = adminSlideshow.requestFullscreen();
+    } else if (adminSlideshow.webkitRequestFullscreen) {
+      try {
+        adminSlideshow.webkitRequestFullscreen();
+      } catch (e) {
+        /* 忽略 */
+      }
+    }
+    if (p && typeof p.then === "function") {
+      p.catch(function () {
+        /* 非安全上下文等情况下全屏失败，仍可使用浮层放映 */
+      });
+    }
+  }
+
+  function exitSlideshow() {
+    slideshowOpen = false;
+    function hideLayer() {
+      if (adminSlideshow) {
+        adminSlideshow.classList.add("is-hidden");
+        adminSlideshow.setAttribute("aria-hidden", "true");
+      }
+    }
+    if (isSlideshowFullscreen()) {
+      var chain = null;
+      if (document.exitFullscreen) {
+        chain = document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        try {
+          document.webkitExitFullscreen();
+        } catch (e2) {
+          /* 忽略 */
+        }
+      }
+      if (chain && typeof chain.then === "function") {
+        chain.then(hideLayer).catch(hideLayer);
+      } else {
+        hideLayer();
+      }
+    } else {
+      hideLayer();
+    }
+  }
+
+  function enterSlideshow() {
+    if (!adminSlideshow) {
+      return;
+    }
+    if (!items.length) {
+      alert("当前场景无条目，无法放映。");
+      return;
+    }
+    slideshowOpen = true;
+    adminSlideshow.classList.remove("is-hidden");
+    adminSlideshow.setAttribute("aria-hidden", "false");
+    apiFetch("/api/state")
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        activeId = data.activeId;
+        highlightList();
+        renderPreview(data.item);
+        renderSlideshow(data.item);
+      })
+      .catch(function () {
+        renderSlideshow(null);
+      });
+    requestSlideshowFullscreen();
+  }
+
+  function onSlideshowFullscreenChange() {
+    if (!adminSlideshow) {
+      return;
+    }
+    var fs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fs === adminSlideshow) {
+      return;
+    }
+    if (!slideshowOpen) {
+      return;
+    }
+    if (!adminSlideshow.classList.contains("is-hidden")) {
+      slideshowOpen = false;
+      adminSlideshow.classList.add("is-hidden");
+      adminSlideshow.setAttribute("aria-hidden", "true");
+    }
+  }
+
   function renderPreview(item) {
     if (!item) {
       previewEl.innerHTML = "<p class=\"preview-empty\">（无）</p>";
@@ -175,6 +393,7 @@
         activeId = data.activeId;
         highlightList();
         renderPreview(data.item);
+        renderSlideshowIfOpen(data.item);
       })
       .catch(function (err) {
         alert(err.message || "设置失败");
@@ -191,6 +410,7 @@
         }
         highlightList();
         renderPreview(data.item);
+        renderSlideshowIfOpen(data.item);
       })
       .catch(function () {});
   }
@@ -341,6 +561,25 @@
     setState("blank");
   });
 
+  if (btnSlideshow) {
+    btnSlideshow.addEventListener("click", function () {
+      enterSlideshow();
+    });
+  }
+
+  if (adminSlideshow) {
+    adminSlideshow.addEventListener("click", function (ev) {
+      if (!slideshowOpen) {
+        return;
+      }
+      ev.preventDefault();
+      goNext();
+    });
+  }
+
+  document.addEventListener("fullscreenchange", onSlideshowFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", onSlideshowFullscreenChange);
+
   btnPrev.addEventListener("click", goPrev);
   btnNext.addEventListener("click", goNext);
 
@@ -394,6 +633,11 @@
   }
 
   document.addEventListener("keydown", function (ev) {
+    if (slideshowOpen && ev.key === "Escape") {
+      ev.preventDefault();
+      exitSlideshow();
+      return;
+    }
     if (isFormFieldTarget(ev.target) || ev.isComposing) {
       return;
     }

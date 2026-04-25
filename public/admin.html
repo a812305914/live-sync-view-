@@ -18,6 +18,7 @@
       <a href="/editor" class="btn">编辑内容</a>
       <button type="button" id="btn-share" class="btn" title="生成会众端链接二维码（需在 .env 配置 PUBLIC_VIEW_URL）">分享</button>
       <button type="button" id="btn-blank" class="btn btn-primary">一键空白页</button>
+      <button type="button" id="btn-slideshow" class="btn btn-primary" title="全屏放映：点击画面下一页，Esc 退出">放映</button>
       <button type="button" id="btn-prev" class="btn">上一项</button>
       <button type="button" id="btn-next" class="btn">下一项</button>
     </div>
@@ -58,6 +59,35 @@
       </div>
       <button type="button" id="admin-share-close" class="btn">关闭</button>
     </div>
+  </div>
+
+  <!-- 全屏放映：与会众端相近布局；点击下一页、Esc 退出（见 admin.js） -->
+  <div
+    id="admin-slideshow"
+    class="admin-slideshow is-hidden"
+    aria-hidden="true"
+    aria-label="全屏放映"
+    role="application"
+  >
+    <div id="admin-ss-root" class="admin-ss-root">
+      <section id="admin-ss-panel-blank" class="view-panel is-hidden" data-panel="blank">
+        <p class="view-wait">请稍候</p>
+      </section>
+      <section id="admin-ss-panel-notice" class="view-panel is-hidden" data-panel="notice">
+        <p id="admin-ss-notice-text" class="view-notice"></p>
+      </section>
+      <section id="admin-ss-panel-text" class="view-panel is-hidden" data-panel="text">
+        <h1 id="admin-ss-text-title" class="view-title"></h1>
+        <p id="admin-ss-text-body" class="view-body"></p>
+      </section>
+      <section id="admin-ss-panel-image" class="view-panel is-hidden" data-panel="image">
+        <div class="view-image-wrap">
+          <img id="admin-ss-view-image" class="view-image" alt="" />
+          <p id="admin-ss-image-fallback" class="view-image-fallback is-hidden">图片暂不可用</p>
+        </div>
+      </section>
+    </div>
+    <p class="admin-slideshow-hint">点击切换到下一页 · Esc 退出放映</p>
   </div>
 
   <script src="/admin.js"></script>
