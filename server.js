@@ -20,6 +20,7 @@
  *
  * --- 编辑器图片上传 ---
  * - POST /api/editor/upload-media：multipart 字段名 `file`，保存至 public/media，响应 `{ ok, url: "/media/文件名" }`；需编辑端会话（与 PUT /api/items 相同）。
+ * - PDF 拆页由编辑端（public/editor.html + pdf.js CDN）在浏览器内转 PNG 后仍走本接口逐页上传，服务端不解析 PDF。
  *
  * --- 页面访问保护（/admin、/editor）---
  * - 环境变量：ADMIN_PASSWORD（控制端）、EDITOR_PASSWORD（编辑端，可省略则与 ADMIN_PASSWORD 相同）；

@@ -24,6 +24,14 @@
         <button type="button" id="btn-toggle-json" class="btn btn-toolbar-muted">查看原始 JSON</button>
         <button type="button" id="btn-format" class="btn btn-toolbar-muted">格式化 JSON</button>
         <button type="button" id="btn-reload" class="btn btn-toolbar-muted">重新加载</button>
+        <button
+          type="button"
+          id="btn-clear-scene"
+          class="btn btn-toolbar-muted btn-toolbar-danger"
+          title="清空当前场景内全部条目，仅保留一条空白页（需确认）"
+        >
+          一键清空
+        </button>
       </div>
     </div>
   </header>
@@ -93,6 +101,19 @@
               <li role="option"><button type="button" class="editor-add-menu-item" data-new-type="text">text — 标题与正文</button></li>
               <li role="option"><button type="button" class="editor-add-menu-item" data-new-type="image">image — 图片</button></li>
             </ul>
+          </div>
+          <div class="editor-pdf-import-row" role="group" aria-label="从 PDF 插入多页为图片">
+            <button type="button" id="btn-pdf-import" class="btn btn-small btn-toolbar-muted" title="将 PDF 每页渲染为 PNG 并插入为 image 条目">
+              导入 PDF（拆页）
+            </button>
+            <input
+              type="file"
+              id="f-pdf-import"
+              class="editor-pdf-file-input"
+              accept=".pdf,application/pdf"
+              aria-label="选择 PDF 文件"
+            />
+            <span id="pdf-import-status" class="editor-upload-status" role="status" aria-live="polite"></span>
           </div>
         </div>
         <p id="scene-item-warning" class="editor-scene-item-warning is-hidden" role="alert"></p>
@@ -228,6 +249,12 @@
     <button type="button" id="btn-back-form" class="btn">返回表单编辑</button>
   </div>
 
-  <script src="/editor.js"></script>
+  <script type="module">
+    import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs";
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs";
+    window.__PDFJS = pdfjsLib;
+  </script>
+  <script src="/editor.js" defer></script>
 </body>
 </html>

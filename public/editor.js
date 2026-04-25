@@ -4,6 +4,8 @@
  * - 发布：POST /api/items/publish（整份 scenes 校验后覆盖 items.json → 更新 itemsRevision/stateVersion）
  * - 加载：GET /api/items/draft
  * - 左侧切换场景：先把当前 items 写回对应 scene，再加载另一场景的 items。
+ * - PDF：「导入 PDF（拆页）」在浏览器内用 pdf.js 逐页渲染为 PNG，经 POST /api/editor/upload-media 上传后，在当前选中项下方插入多条 image。
+ * - 一键清空：确认后清空当前场景 items，仅保留一条 blank（须先保存或发布才会写入文件）。
  */
 
 (function () {
@@ -27,6 +29,12 @@
     o.credentials = "same-origin";
     return fetch(url, o);
   }
+
+  var btnPdfImport = document.getElementById("btn-pdf-import");
+  var fPdfImport = document.getElementById("f-pdf-import");
+  var pdfImportStatus = document.getElementById("pdf-import-status");
+  /** 单次导入 PDF 最多页数（避免浏览器/服务器压力过大） */
+  var MAX_PDF_PAGES = 200;
 
   function setImageUploadStatus(msg) {
     if (imageUploadStatus) {
@@ -81,6 +89,176 @@
       .finally(function () {
         if (fImageFile) {
           fImageFile.disabled = false;
+        }
+      });
+  }
+
+  function setPdfImportStatus(msg) {
+    if (pdfImportStatus) {
+      pdfImportStatus.textContent = msg || "";
+    }
+  }
+
+  function waitForPdfJs(timeoutMs) {
+    var deadline = Date.now() + (timeoutMs || 15000);
+    return new Promise(function (resolve, reject) {
+      function tick() {
+        if (window.__PDFJS) {
+          resolve(window.__PDFJS);
+          return;
+        }
+        if (Date.now() > deadline) {
+          reject(new Error("PDF 组件加载超时，请刷新页面后重试"));
+          return;
+        }
+        setTimeout(tick, 30);
+      }
+      tick();
+    });
+  }
+
+  function canvasToPngBlob(canvas) {
+    return new Promise(function (resolve, reject) {
+      canvas.toBlob(function (blob) {
+        if (!blob) {
+          reject(new Error("无法将页面导出为 PNG"));
+          return;
+        }
+        resolve(blob);
+      }, "image/png");
+    });
+  }
+
+  function uploadImageBlob(blob, filename) {
+    var fd = new FormData();
+    fd.append("file", blob, filename || "page.png");
+    return apiFetch("/api/editor/upload-media", { method: "POST", body: fd }).then(function (r) {
+      if (r.status === 401) {
+        window.location.href =
+          "/login?" +
+          new URLSearchParams({ next: "/editor", role: "editor" }).toString();
+        throw new Error("需要登录");
+      }
+      return r.json().then(function (body) {
+        if (!r.ok) {
+          throw new Error(body.error || r.statusText);
+        }
+        return body;
+      });
+    });
+  }
+
+  function renderPdfPageToBlob(pdf, pageNum, maxCssPixels) {
+    maxCssPixels = maxCssPixels || 2200;
+    return pdf.getPage(pageNum).then(function (page) {
+      var base = page.getViewport({ scale: 1 });
+      var scale = Math.min(2, maxCssPixels / Math.max(base.width, 1));
+      var viewport = page.getViewport({ scale: scale });
+      var canvas = document.createElement("canvas");
+      var ctx = canvas.getContext("2d", { alpha: false });
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      var renderTask = page.render({ canvasContext: ctx, viewport: viewport });
+      return renderTask.promise.then(function () {
+        return canvasToPngBlob(canvas);
+      });
+    });
+  }
+
+  function processPdfPagesToUrls(pdf, numPages, baseLabel) {
+    var urls = [];
+    function step(p) {
+      if (p > numPages) {
+        return Promise.resolve(urls);
+      }
+      setPdfImportStatus("处理第 " + p + " / " + numPages + " 页…");
+      return renderPdfPageToBlob(pdf, p)
+        .then(function (blob) {
+          return uploadImageBlob(blob, baseLabel + "-p" + p + ".png");
+        })
+        .then(function (data) {
+          var u = (data && data.url) || "";
+          if (!u) {
+            throw new Error("上传未返回 URL");
+          }
+          urls.push(u);
+          return step(p + 1);
+        });
+    }
+    return step(1);
+  }
+
+  function importPdfAsImageItems(file) {
+    if (!file) {
+      return;
+    }
+    var lower = (file.name || "").toLowerCase();
+    var okType = file.type === "application/pdf" || lower.endsWith(".pdf");
+    if (!okType) {
+      setStatus("请选择 PDF 文件（.pdf）。", true);
+      return;
+    }
+    syncFormToState();
+    var baseLabel = (file.name || "PDF").replace(/\.[^.]+$/, "") || "PDF";
+    setPdfImportStatus("准备中…");
+    if (btnPdfImport) {
+      btnPdfImport.disabled = true;
+    }
+    waitForPdfJs(20000)
+      .then(function (pdfjsLib) {
+        return file.arrayBuffer().then(function (buf) {
+          var task = pdfjsLib.getDocument({ data: new Uint8Array(buf) });
+          return task.promise;
+        });
+      })
+      .then(function (pdf) {
+        var n = pdf.numPages;
+        if (!n || n < 1) {
+          throw new Error("PDF 无有效页");
+        }
+        if (n > MAX_PDF_PAGES) {
+          throw new Error("页数超过上限（最多 " + MAX_PDF_PAGES + " 页）");
+        }
+        return processPdfPagesToUrls(pdf, n, baseLabel).finally(function () {
+          if (pdf && typeof pdf.destroy === "function") {
+            return pdf.destroy().catch(function () {});
+          }
+        });
+      })
+      .then(function (finalUrls) {
+        var insertAt = selectedIndex >= 0 ? selectedIndex + 1 : items.length;
+        var firstIdx = insertAt;
+        for (var i = 0; i < finalUrls.length; i++) {
+          var id = uniqueIdForType("image", -1);
+          items.splice(insertAt + i, 0, {
+            id: id,
+            type: "image",
+            label: baseLabel + " 第 " + (i + 1) + " 页",
+            src: finalUrls[i],
+          });
+        }
+        selectedIndex = firstIdx;
+        renderList();
+        renderForm();
+        updateLivePreview();
+        touchDraft();
+        setPdfImportStatus("");
+        setStatus("已从 PDF 插入 " + finalUrls.length + " 条图片项。", false);
+      })
+      .catch(function (e) {
+        if (e && e.message === "需要登录") {
+          setPdfImportStatus("");
+          return;
+        }
+        setPdfImportStatus("");
+        setStatus("PDF 导入失败: " + (e.message || String(e)), true);
+      })
+      .finally(function () {
+        if (btnPdfImport) {
+          btnPdfImport.disabled = false;
+        }
+        if (fPdfImport) {
+          fPdfImport.value = "";
         }
       });
   }
@@ -1299,6 +1477,34 @@
     touchDraft();
   }
 
+  function clearCurrentSceneItems() {
+    syncFormToState();
+    var sc = getCurrentScene();
+    var sceneLabel = sc ? (sc.name && String(sc.name).trim() ? sc.name : sc.id) : "当前场景";
+    var msg =
+      "确定要一键清空场景「" +
+      sceneLabel +
+      "」下的全部条目吗？\n\n将只保留一条空白页（blank）。未保存的修改可点「重新加载」恢复（若已保存则无法由此恢复）。";
+    if (!window.confirm(msg)) {
+      return;
+    }
+    items = [{ id: "blank", type: "blank", label: "空白页" }];
+    selectedIndex = 0;
+    syncItemsToCurrentScene();
+    if (itemFilterSearch) {
+      itemFilterSearch.value = "";
+    }
+    if (itemFilterType) {
+      itemFilterType.value = "";
+    }
+    jsonAdvancedDirty = false;
+    renderList();
+    renderForm();
+    updateSceneItemWarning();
+    touchDraft();
+    setStatus("已清空当前场景条目（仅保留空白页）。如需写入文件请点击「保存」或「发布」。", false);
+  }
+
   function copyCurrent() {
     if (selectedIndex < 0) {
       return;
@@ -1547,6 +1753,19 @@
     });
   }
 
+  if (btnPdfImport && fPdfImport) {
+    btnPdfImport.addEventListener("click", function () {
+      fPdfImport.click();
+    });
+    fPdfImport.addEventListener("change", function () {
+      var fs = fPdfImport.files;
+      if (!fs || !fs.length) {
+        return;
+      }
+      importPdfAsImageItems(fs[0]);
+    });
+  }
+
   fType.addEventListener("change", function () {
     if (selectedIndex < 0) {
       return;
@@ -1574,6 +1793,10 @@
   }
 
   document.getElementById("btn-reload").addEventListener("click", loadFromServer);
+  var btnClearScene = document.getElementById("btn-clear-scene");
+  if (btnClearScene) {
+    btnClearScene.addEventListener("click", clearCurrentSceneItems);
+  }
   document.getElementById("btn-save").addEventListener("click", save);
   var btnPublish = document.getElementById("btn-publish");
   if (btnPublish) {
